@@ -1,0 +1,5 @@
+flask
+nose
+requests
+connexion
+pymongo

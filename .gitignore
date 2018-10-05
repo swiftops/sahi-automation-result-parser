@@ -1,0 +1,11 @@
+.idea/
+venv/
+**__pycache__/
+build/
+log/app.log
+.project
+.pydevproject
+RunSuite1.xml
+RunSuite2.xml
+RunSuite3.xml
+RunSuite4.xml

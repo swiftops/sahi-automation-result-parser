@@ -1,0 +1,33 @@
+.shared_hidden_key: &shared 
+  before_script:
+    - docker login -u "hbhandari" -p "welcome@1"
+
+stages:
+ - build_images
+ - test
+ - deploy
+ 
+job1:
+  tags:
+    - micro_runner
+  <<: *shared
+  stage: build_images
+  script:
+  - docker build -t swiftops/sahi_automation .
+  - docker push swiftops/sahi_automation
+
+#job2:
+ # tags:
+ #   - docker-runner
+ # stage: test
+ # script:
+ # - pip install -r requirements.txt
+ # - python setup.py test
+  
+job3:
+  tags:
+    - micro_runner
+  stage: deploy
+  script:
+  - ssh -i /home/gitlab-runner/workspace/AmazonCloudKeyPair.pem ubuntu@34.229.24.18 'bash -s' < deploy.sh
+  when: on_success
