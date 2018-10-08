@@ -37,7 +37,7 @@ It brings information about the failures in the last Sahi run suites which mainl
 ##### Checkout Repository
 Checkout project code from git.
 ```
-$git clone http://gitserver.digite.in/devops-MS/MS-AutomationResult.git
+$git clone https://github.com/swiftops/sahi-automation-result-parser.git
 ```
 ##### Configuration
 You have to specify your database ip,port,db name, collection name, sahi_result_url,runtime, browserType, nodeCount and module in sahiConfig.ini file which is present at root directory.
@@ -48,7 +48,7 @@ To run microservice we need to go to root directory from command line. For Examp
 We have project in D drive then we should run as below.
 
 ```
-   D:\MS-AutomationResult>python services.py
+   D:\GitHub\sahi-automation-result-parser>python services.py
 ``` 
 
 ### How to use
