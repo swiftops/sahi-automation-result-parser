@@ -28,20 +28,14 @@ MONGO_SAHI_DB = CLIENT[db_name]
 MONGO_SAHI_COLLECTION= MONGO_SAHI_DB[db_collection]
 
 
-#CLIENT = MongoClient("35.174.10.200", 27017)  #the mongo db is on same machine on aws. hence passing localhost.
-#MONGO_SAHI_DB = CLIENT.sahi_automation
-#MONGO_SAHI_COLLECTION= MONGO_SAHI_DB.sahi_coll
-
 browser = config.get("SAHI", "browserType")
 result_url = config.get("SAHI", "sahi_result_url")
 runtime = config.get("SAHI", "runtime")
 node_count = config.get("SAHI", "nodeCount")
 module = config.get("SAHI", "module")
+iSIndexDotXmlFromHttpURL = config.get("SAHI", "iSIndexDotXmlFromHttpURL")
 
-def sahi_run_report_default(version):
-    return sahi_run_report(version, None)
-
-def sahi_run_report(version):
+def sahi_run_report(release,build):
     """This will return Sahi run detailed based on
     Module : All,ECR, Sanity, Start ect.
     Version : Combination of relaese version with build. Ex. 3.2.0_25
@@ -49,30 +43,33 @@ def sahi_run_report(version):
     """
     jsondata = {}
     failuredata = {}
-    versn=version.split("_");
+    version = release+"_"+build
     i=0
     flag=True
     while i < int(runtime):
         successdata = {}
         i += 1
-        source_file_name=str(result_url).replace("#RELEASE_NUMBER#", versn[0]).replace("#BUILD_NUMBER#", versn[1]).replace("#MODULE#", module).replace("#VERSION#", version).replace("#BROWSER#", browser).replace("#COUNTER#", str(i))
-        try:
-            resp = requests.get(source_file_name)
-        except Exception as e:
-            failuredata["statuscode"] = 404
-            failuredata["errormsg"] = "atlas URL is not working : " + e.__str__()
-            return str(buildErrorResponse(failuredata))
+        source_file_name=str(result_url).replace("#RELEASE_NUMBER#", release).replace("#BUILD_NUMBER#", build).replace("#MODULE#", module).replace("#VERSION#", version).replace("#BROWSER#", browser).replace("#COUNTER#", str(i))
 
-        if i==1 and resp.status_code != 200:
-            flag=False
-            break
-        elif resp.status_code != 200:
-            break
-        destination_file_name='RunSuite'+str(i)+'.xml'
-        with open(destination_file_name, 'wb') as f:
-            f.write(resp.content)
+        if iSIndexDotXmlFromHttpURL=="YES":
+            try:
+                resp = requests.get(source_file_name)
+            except Exception as e:
+                failuredata["statuscode"] = 404
+                failuredata["errormsg"] = "atlas URL is not working : " + e.__str__()
+                return str(buildErrorResponse(failuredata))
 
-        doc = xml.dom.minidom.parse(destination_file_name)
+            if i==1 and resp.status_code != 200:
+                flag=False
+                break
+            elif resp.status_code != 200:
+                break
+
+            source_file_name='RunSuite'+str(i)+'.xml'
+            with open(source_file_name, 'wb') as f:
+                f.write(resp.content)
+
+        doc = xml.dom.minidom.parse(source_file_name)
 
         starttime = doc.getElementsByTagName('STARTTIME')
         successdata['STARTTIME']=str(starttime[0].childNodes[0].nodeValue)
@@ -122,7 +119,7 @@ def sahi_run_report(version):
         failuredata['errormsg'] = 'Sahi automation run did not happen on  ' + version
         return str(buildErrorResponse(failuredata))
 
-def sahi_run_result(releaseNo,buildNo):
+def sahi_run_result(release,build):
     jsondata = {}
     failuredata = {}
     i=0
@@ -132,25 +129,27 @@ def sahi_run_result(releaseNo,buildNo):
         suitesummary = {}
         scriptSummaries = {}
         i += 1
-        version = releaseNo+"_"+buildNo
-        source_file_name=str(result_url).replace("#RELEASE_NUMBER#", releaseNo).replace("#BUILD_NUMBER#", buildNo).replace("#MODULE#", module).replace("#VERSION#", version).replace("#BROWSER#", browser).replace("#COUNTER#", str(i))
-        try:
-            resp = requests.get(source_file_name)
-        except Exception as e:
-            failuredata["statuscode"] = 404
-            failuredata["errormsg"] = "atlas URL is not working : " + e.__str__()
-            return str(buildErrorResponse(failuredata))
+        version = release+"_"+build
+        source_file_name=str(result_url).replace("#RELEASE_NUMBER#", release).replace("#BUILD_NUMBER#", build).replace("#MODULE#", module).replace("#VERSION#", version).replace("#BROWSER#", browser).replace("#COUNTER#", str(i))
+        if iSIndexDotXmlFromHttpURL=="YES":
+            try:
+                resp = requests.get(source_file_name)
+            except Exception as e:
+                failuredata["statuscode"] = 404
+                failuredata["errormsg"] = "atlas URL is not working : " + e.__str__()
+                return str(buildErrorResponse(failuredata))
 
-        if i==1 and resp.status_code != 200:
-            flag=False
-            break
-        elif resp.status_code != 200:
-            break
-        destination_file_name='RunSuite'+str(i)+'.xml'
-        with open(destination_file_name, 'wb') as f:
-            f.write(resp.content)
+            if i==1 and resp.status_code != 200:
+                flag=False
+                break
+            elif resp.status_code != 200:
+                break
 
-        doc = xml.dom.minidom.parse(destination_file_name)
+            source_file_name='RunSuite'+str(i)+'.xml'
+            with open(source_file_name, 'wb') as f:
+                f.write(resp.content)
+
+        doc = xml.dom.minidom.parse(source_file_name)
         ########################==========suitesummary=======##########################
         ids = doc.getElementsByTagName('ID')
         suitesummary['ID']=str(ids[0].childNodes[0].nodeValue)
@@ -299,7 +298,7 @@ def sahi_run_result(releaseNo,buildNo):
 
 
     if flag==True:
-        return str(getSahiResultResponse(releaseNo,buildNo,jsondata))
+        return str(getSahiResultResponse(release,build,jsondata))
     else:
         failuredata = {}
         failuredata['statuscode'] = 404
@@ -311,38 +310,41 @@ def sahi_failed_report(release,build):
     release : 4.0.0,4.2.0 ect.
     build : 1,2,3,4,5 ect
     """
-    failuredata = {}
-    i=1
-    count = 0
-    version = release+"_"+build
-    source_file_name=""
-    while i < int(runtime):
-        source_file_name=str(result_url).replace("#RELEASE_NUMBER#", release).replace("#BUILD_NUMBER#", build).replace("#MODULE#", module).replace("#VERSION#", version).replace("#BROWSER#", browser).replace("#COUNTER#", str(i))
-        resp = requests.get(source_file_name)
-        if resp.status_code != 200:
-            count=i-1
-            #print("===============>",count, i)
-            break
-        i += 1
-    source_file_name=str(result_url).replace("#RELEASE_NUMBER#", release).replace("#BUILD_NUMBER#", build).replace("#MODULE#", module).replace("#VERSION#", version).replace("#BROWSER#", browser).replace("#COUNTER#", str(count))
-    try:
-        resp = requests.get(source_file_name)
-    except Exception as e:
-        failuredata["statuscode"] = 404
-        failuredata["errormsg"] = "atlas URL is not working : " + e.__str__()
-        return str(buildErrorResponse(failuredata))
-
-    if resp.status_code != 200:
+    if iSIndexDotXmlFromHttpURL=="YES":
         failuredata = {}
-        failuredata['statuscode'] = 404
-        failuredata['errormsg'] = 'Sahi automation run did not happened yet'
-        return str(buildErrorResponse(failuredata))
+        i=1
+        count = 1
+        version = release+"_"+build
+        source_file_name=""
+        while i < int(runtime):
+            source_file_name=str(result_url).replace("#RELEASE_NUMBER#", release).replace("#BUILD_NUMBER#", build).replace("#MODULE#", module).replace("#VERSION#", version).replace("#BROWSER#", browser).replace("#COUNTER#", str(i))
+            resp = requests.get(source_file_name)
+            if resp.status_code != 200:
+                count=i-1
+                #print("===============>",count, i)
+                break
+            i += 1
+        source_file_name=str(result_url).replace("#RELEASE_NUMBER#", release).replace("#BUILD_NUMBER#", build).replace("#MODULE#", module).replace("#VERSION#", version).replace("#BROWSER#", browser).replace("#COUNTER#", str(count))
+        try:
+            resp = requests.get(source_file_name)
+        except Exception as e:
+            failuredata["statuscode"] = 404
+            failuredata["errormsg"] = "atlas URL is not working : " + e.__str__()
+            return str(buildErrorResponse(failuredata))
 
-    destination_file_name='RunSuite'+str(count)+'.xml'
-    with open(destination_file_name, 'wb') as f:
-        f.write(resp.content)
+        if resp.status_code != 200:
+            failuredata = {}
+            failuredata['statuscode'] = 404
+            failuredata['errormsg'] = 'Sahi automation run did not happened yet'
+            return str(buildErrorResponse(failuredata))
 
+        destination_file_name='RunSuite'+str(count)+'.xml'
+        with open(destination_file_name, 'wb') as f:
+            f.write(resp.content)
+    else:
+        destination_file_name=str(result_url)
     doc = xml.dom.minidom.parse(destination_file_name)
+
     totalcount = doc.getElementsByTagName('TOTALCOUNT')
     totalscript = str(totalcount[0].childNodes[0].nodeValue)
 
@@ -372,53 +374,58 @@ def sahi_failed_summary(release,build):
     release : 4.0.0,4.2.0 ect.
     build : 1,2,3,4,5 ect
     """
-    failuredata = {}
+
     successdata = {}
-    version = release+"_"+build
-    first_file_name=str(result_url).replace("#RELEASE_NUMBER#", release).replace("#BUILD_NUMBER#", build).replace("#MODULE#", module).replace("#VERSION#", version).replace("#BROWSER#", browser).replace("#COUNTER#", str(1))
-    i=1
-    count = 0
-
-    source_file_name=""
-    while i < int(runtime):
-        source_file_name=str(result_url).replace("#RELEASE_NUMBER#", release).replace("#BUILD_NUMBER#", build).replace("#MODULE#", module).replace("#VERSION#", version).replace("#BROWSER#", browser).replace("#COUNTER#", str(i))
-        resp = requests.get(source_file_name)
-        if resp.status_code != 200:
-            count=i-1
-            #print("===============>",count, i)
-            break
-        i += 1
-    source_file_name=str(result_url).replace("#RELEASE_NUMBER#", release).replace("#BUILD_NUMBER#", build).replace("#MODULE#", module).replace("#VERSION#", version).replace("#BROWSER#", browser).replace("#COUNTER#", str(count))
-
-    try:
-        resp = requests.get(source_file_name)
-    except Exception as e:
-        failuredata["statuscode"] = 404
-        failuredata["errormsg"] = "atlas URL is not working : " + e.__str__()
-        return str(buildErrorResponse(failuredata))
-
-    if resp.status_code != 200:
+    destination_file_name1=""
+    destination_file_name=""
+    if iSIndexDotXmlFromHttpURL=="YES":
         failuredata = {}
-        failuredata['statuscode'] = 404
-        failuredata['errormsg'] = 'Sahi automation run did not happened yet'
-        return str(buildErrorResponse(failuredata))
+        version = release+"_"+build
+        first_file_name=str(result_url).replace("#RELEASE_NUMBER#", release).replace("#BUILD_NUMBER#", build).replace("#MODULE#", module).replace("#VERSION#", version).replace("#BROWSER#", browser).replace("#COUNTER#", str(1))
+        i=1
+        count = 1
 
-    destination_file_name1='RunSuite1.xml'
-    with open(destination_file_name1, 'wb') as f:
-        resp1 = requests.get(first_file_name)
-        f.write(resp1.content)
+        source_file_name=""
+        while i < int(runtime):
+            source_file_name=str(result_url).replace("#RELEASE_NUMBER#", release).replace("#BUILD_NUMBER#", build).replace("#MODULE#", module).replace("#VERSION#", version).replace("#BROWSER#", browser).replace("#COUNTER#", str(i))
+            resp = requests.get(source_file_name)
+            if resp.status_code != 200:
+                count=i-1
+                #print("===============>",count, i)
+                break
+            i += 1
+        source_file_name=str(result_url).replace("#RELEASE_NUMBER#", release).replace("#BUILD_NUMBER#", build).replace("#MODULE#", module).replace("#VERSION#", version).replace("#BROWSER#", browser).replace("#COUNTER#", str(count))
+
+        try:
+            resp = requests.get(source_file_name)
+        except Exception as e:
+            failuredata["statuscode"] = 404
+            failuredata["errormsg"] = "atlas URL is not working : " + e.__str__()
+            return str(buildErrorResponse(failuredata))
+
+        if resp.status_code != 200:
+            failuredata = {}
+            failuredata['statuscode'] = 404
+            failuredata['errormsg'] = 'Sahi automation run did not happened yet'
+            return str(buildErrorResponse(failuredata))
+
+        destination_file_name1='RunSuite1.xml'
+        with open(destination_file_name1, 'wb') as f:
+            resp1 = requests.get(first_file_name)
+            f.write(resp1.content)
+
+        destination_file_name='RunSuite'+str(count)+'.xml'
+        with open(destination_file_name, 'wb') as f:
+            f.write(resp.content)
+    else:
+        destination_file_name1=str(result_url)
+        destination_file_name=str(result_url)
 
     doc1 = xml.dom.minidom.parse(destination_file_name1)
-
+    doc = xml.dom.minidom.parse(destination_file_name)
     totalcount1 = doc1.getElementsByTagName('TOTALCOUNT')
     totalscript1 = str(totalcount1[0].childNodes[0].nodeValue)
     successdata['TOTALCOUNT']=totalscript1
-
-    destination_file_name='RunSuite'+str(count)+'.xml'
-    with open(destination_file_name, 'wb') as f:
-        f.write(resp.content)
-
-    doc = xml.dom.minidom.parse(destination_file_name)
 
     totalcount = doc.getElementsByTagName('TOTALCOUNT')
     totalscript = str(totalcount[0].childNodes[0].nodeValue)

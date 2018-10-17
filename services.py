@@ -3,20 +3,20 @@ from sahi_report.sahiRunReport import sahi_run_report,sahi_run_result,sahi_faile
 
 app = Flask(__name__)
 
-@app.route('/getSahiRunSummary/<version>')
-def sahiRunReport(version):
+@app.route('/getSahiRunSummary/<release>/<build>')
+def sahiRunReport(release,build):
     """
-        URL like : http://swiftops.digite.com/sahi_automation/getSahiRunSummary/4.2.0_18
+        URL like : http://swiftops.digite.com/sahi_automation/getSahiRunSummary/4.2.0/18
     """
-    data = sahi_run_report(version)
+    data = sahi_run_report(release,build)
     return data
 
-@app.route('/getSahiRunResult/<releaseNo>/<buildNo>')
-def sahiRunResult(releaseNo,buildNo):
+@app.route('/getSahiRunResult/<release>/<build>')
+def sahiRunResult(release,build):
     """
         URL like : http://swiftops.digite.com/sahi_automation/getSahiRunResult/4.2.0/18
     """
-    data = sahi_run_result(releaseNo,buildNo)
+    data = sahi_run_result(release,build)
     return data
 
 @app.route('/getSahiFailedReport/<release>/<build>')
