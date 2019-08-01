@@ -8,7 +8,6 @@ from flask import Flask
 import xml.dom.minidom
 import configparser
 from pymongo import MongoClient
-from builtins import int
 import json
 
 config = configparser.ConfigParser()
